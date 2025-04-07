@@ -308,6 +308,7 @@ class Note:
     def __init__(self, text):
         self.text = text
         self.tags = []
+        self.creation_date = datetime.now()
 
     def add_tag(self, tag):
         self.tags.append(Tag(tag))
@@ -321,12 +322,14 @@ class Note:
 
     def __str__(self):
         tags_str = f", tags: {'; '.join(t.value for t in self.tags)}" if self.tags else ""
-        return f"Note: {self.text}{tags_str}"
+        date_str = self.creation_date.strftime("%d.%m.%Y %H:%M:%S")
+        return f"Note: {self.text}, created at: {date_str}{tags_str}"
     
     def to_dict(self):
         return {
             "Note": self.text,
-            "Tags": "; ".join(t.value for t in self.tags)
+            "Tags": "; ".join(t.value for t in self.tags),
+            "Creation Date": self.creation_date.strftime("%d.%m.%Y %H:%M:%S")
         }
 
 
@@ -351,9 +354,9 @@ class NoteBook(UserDict):
 
     def to_table(self):
         table = PrettyTable()
-        table.field_names = ["ID", "Note", "Tags"]
+        table.field_names = ["ID", "Note", "Tags", "Creation Date"]
         for note_id, note in self.data.items():
-            table.add_row([note_id, note.to_dict()["Note"], note.to_dict()["Tags"]])
+            table.add_row([note_id, note.to_dict()["Note"], note.to_dict()["Tags"], note.to_dict()["Creation Date"]])
         return table
 
 @input_error
