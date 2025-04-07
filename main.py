@@ -251,7 +251,7 @@ def load_data(filename="addressbook.pkl"):
 
 
 COMMANDS = [
-    "hello",
+     "hello",
     "add",
     "change",
     "phone",
@@ -260,6 +260,12 @@ COMMANDS = [
     "add-birthday",
     "birthdays",
     "show-birthday",
+    "add-note",
+    "delete-note",
+    "add-tag",
+    "delete-tag",
+    "find-tag",
+    "show-notes",
     "exit",
     "close",
 ]
@@ -285,12 +291,150 @@ def display_commands():
         ["add-birthday", "Add a birthday to a contact"],
         ["birthdays", "Show upcoming birthdays"],
         ["show-birthday", "Show a contact's birthday"],
+        ["add-note", "Add a new note"],
+        ["delete-note", "Delete a note"],
+        ["add-tag", "Add a tag to a note"],
+        ["delete-tag", "Delete a tag from a note"],
+        ["find-tag", "Find notes by tag"],
+        ["show-notes", "Show all notes"],
         ["exit/close", "Exit the program"],
     ])
     print(table)
 
+class Tag(Field):
+    pass
+
+class Note:
+    def __init__(self, text):
+        self.text = text
+        self.tags = []
+
+    def add_tag(self, tag):
+        self.tags.append(Tag(tag))
+
+    def remove_tag(self, tag):
+        for t in self.tags:
+            if t.value == tag:
+                self.tags.remove(t)
+                return
+        raise ValueError(f"Tag {tag} not found.")
+
+    def __str__(self):
+        tags_str = f", tags: {'; '.join(t.value for t in self.tags)}" if self.tags else ""
+        return f"Note: {self.text}{tags_str}"
+    
+    def to_dict(self):
+        return {
+            "Note": self.text,
+            "Tags": "; ".join(t.value for t in self.tags)
+        }
+
+
+class NoteBook(UserDict):
+    def add_note(self, note):
+        self.data[len(self.data) + 1] = note
+
+    def delete_note(self, note_id):
+        if note_id in self.data:
+            del self.data[note_id]
+        else:
+            raise KeyError(f"Note {note_id} not found.")
+
+    def find_by_tag(self, tag):
+        found_notes = []
+        for note in self.data.values():
+            for t in note.tags:
+                if t.value == tag:
+                    found_notes.append(note)
+                    break
+        return found_notes
+
+    def to_table(self):
+        table = PrettyTable()
+        table.field_names = ["ID", "Note", "Tags"]
+        for note_id, note in self.data.items():
+            table.add_row([note_id, note.to_dict()["Note"], note.to_dict()["Tags"]])
+        return table
+
+@input_error
+def add_note(args, notebook):
+    if len(args) < 1:
+        raise ValueError("Give me note text please.")
+    text = " ".join(args)
+    note = Note(text)
+    notebook.add_note(note)
+    return "Note added."
+
+
+@input_error
+def delete_note(args, notebook):
+    if len(args) < 1:
+        raise ValueError("Give me note ID please.")
+    note_id = int(args[0])
+    notebook.delete_note(note_id)
+    return f"Note {note_id} deleted."
+
+
+@input_error
+def add_tag(args, notebook):
+    if len(args) < 2:
+        raise ValueError("Give me note ID and tag please.")
+    note_id, tag = int(args[0]), args[1]
+    if note_id not in notebook.data:
+        raise KeyError(f"Note {note_id} not found.")
+    notebook.data[note_id].add_tag(tag)
+    return "Tag added."
+
+
+@input_error
+def delete_tag(args, notebook):
+    if len(args) < 2:
+        raise ValueError("Give me note ID and tag please.")
+    note_id, tag = int(args[0]), args[1]
+    if note_id not in notebook.data:
+        raise KeyError(f"Note {note_id} not found.")
+    notebook.data[note_id].remove_tag(tag)
+    return "Tag deleted."
+
+
+@input_error
+def find_by_tag(args, notebook):
+    if len(args) < 1:
+        raise ValueError("Give me tag please.")
+    tag = args[0]
+    found_notes = notebook.find_by_tag(tag)
+    if not found_notes:
+        return f"No notes found with tag {tag}."
+    table = PrettyTable()
+    table.field_names = ["Note", "Tags"]
+    for note in found_notes:
+        table.add_row([note.to_dict()["Note"], note.to_dict()["Tags"]])
+    return table
+
+
+def show_notes(notebook):
+    if not notebook.data:
+        return "No notes saved yet."
+    else:
+        return notebook.to_table()
+
+def save_notes(notebook, filename="notes.pkl"):
+    with open(filename, "wb") as f:
+        pickle.dump(notebook, f)
+
+
+def load_notes(filename="notes.pkl"):
+    try:
+        with open(filename, "rb") as f:
+            return pickle.load(f)
+    except FileNotFoundError:
+        return NoteBook()
+
+
+
 def main():
     book = load_data()
+    notebook = load_notes()
     print("Welcome to the assistant bot!")
     display_commands()
     readline.set_completer(completer)
@@ -340,8 +484,29 @@ def main():
                 print("No upcoming birthdays in the next 7 days.")
         elif command == "show-birthday":
             print(show_birthday(args, book))
+        elif command == "add-note":
+            print(add_note(args, notebook))
+        elif command == "delete-note":
+            print(delete_note(args, notebook))
+        elif command == "add-tag":
+            print(add_tag(args, notebook))
+        elif command == "delete-tag":
+            print(delete_tag(args, notebook))
+        elif command == "find-tag":
+            result = find_by_tag(args, notebook)
+            if isinstance(result, PrettyTable):
+                print(result)
+            else:
+                print(result)
+        elif command == "show-notes":
+            result = show_notes(notebook)
+            if isinstance(result, PrettyTable):
+                print(result)
+            else:
+                print(result)
         elif command in ["exit", "close"]:
             save_data(book)
+            save_notes(notebook)
             print("Goodbye!")
             break
         else:
