@@ -102,7 +102,30 @@ class AddressBook(UserDict):
         else:
             raise KeyError(f"Contact {name} not found.")
 
-    def get_upcoming_birthdays(self):
+    ### old version of get_upcoming_birthdays
+    # def get_upcoming_birthdays(self):
+    #     today = dt.datetime.now().date()
+    #     upcoming_birthdays = []
+    #     for record in self.data.values():
+    #         if record.birthday:
+    #             birthday = record.birthday.value
+    #             birthday_this_year = birthday.replace(year=today.year)
+    #             if birthday_this_year < today:
+    #                 birthday_this_year = birthday.replace(year=today.year + 1)
+    #             delta = birthday_this_year - today
+    #             if delta.days < 7:
+    #                 upcoming_birthdays.append((record.name.value, birthday_this_year.strftime("%d.%m.%Y")))
+    #     return upcoming_birthdays
+    
+    # def to_table(self):
+    #     table = PrettyTable()
+    #     table.field_names = ["Name", "Phones", "Birthday"]
+    #     for record in self.data.values():
+    #         table.add_row(record.to_dict().values())
+    #     return table
+
+    ### new version of get_upcoming_birthdays
+    def get_upcoming_birthdays(self, days=7):
         today = dt.datetime.now().date()
         upcoming_birthdays = []
         for record in self.data.values():
@@ -112,7 +135,7 @@ class AddressBook(UserDict):
                 if birthday_this_year < today:
                     birthday_this_year = birthday.replace(year=today.year + 1)
                 delta = birthday_this_year - today
-                if delta.days < 7:
+                if delta.days < days:
                     upcoming_birthdays.append((record.name.value, birthday_this_year.strftime("%d.%m.%Y")))
         return upcoming_birthdays
     
@@ -122,8 +145,18 @@ class AddressBook(UserDict):
         for record in self.data.values():
             table.add_row(record.to_dict().values())
         return table
+### old version of parse_input
+# def parse_input(user_input):
+#     if not user_input.strip():
+#         return None, []
+#     try:
+#         cmd, *args = user_input.split()
+#         cmd = cmd.strip().lower()
+#         return cmd, args
+#     except ValueError:
+#         return None, []
 
-
+### new version of parse_input
 def parse_input(user_input):
     if not user_input.strip():
         return None, []
@@ -133,7 +166,6 @@ def parse_input(user_input):
         return cmd, args
     except ValueError:
         return None, []
-
 
 def input_error(func):
     def inner(*args, **kwargs):
@@ -251,7 +283,7 @@ def load_data(filename="addressbook.pkl"):
 
 
 COMMANDS = [
-     "hello",
+    "hello",
     "add",
     "change",
     "phone",
@@ -474,17 +506,39 @@ def main():
             print(delete_contact(args, book))
         elif command == "add-birthday":
             print(add_birthday(args, book))
+        ### old version of birthdays    
+        # elif command == "birthdays":
+        #     upcoming_birthdays = book.get_upcoming_birthdays()
+        #     if upcoming_birthdays:
+        #         table = PrettyTable()
+        #         table.field_names = ["Name", "Birthday"]
+        #         for name, birthday in upcoming_birthdays:
+        #             table.add_row([name, birthday])
+        #         print("Upcoming birthdays in the next 7 days:")
+        #         print(table)
+        #     else:
+        #         print("No upcoming birthdays in the next 7 days.")
+        ### new version of birthdays
         elif command == "birthdays":
-            upcoming_birthdays = book.get_upcoming_birthdays()
+            if args:
+                try:
+                    days = int(args[0])
+                    upcoming_birthdays = book.get_upcoming_birthdays(days)
+                except ValueError:
+                    print("Invalid number of days. Please enter an integer.")
+                    continue
+            else:
+                upcoming_birthdays = book.get_upcoming_birthdays()
+
             if upcoming_birthdays:
                 table = PrettyTable()
                 table.field_names = ["Name", "Birthday"]
                 for name, birthday in upcoming_birthdays:
                     table.add_row([name, birthday])
-                print("Upcoming birthdays in the next 7 days:")
+                print(f"Upcoming birthdays in the next {days if args else 7} days:")
                 print(table)
             else:
-                print("No upcoming birthdays in the next 7 days.")
+                print(f"No upcoming birthdays in the next {days if args else 7} days.")
         elif command == "show-birthday":
             print(show_birthday(args, book))
         elif command == "add-note":
